@@ -1,261 +1,620 @@
+"""
+🏠 אפליקציה חינוכית: חיזוי מחירי דירות
+=========================================
+אפליקציית Streamlit פשוטה לתלמידים שלומדים למידת מכונה בפעם הראשונה.
+היא מלמדת איך בונים מודל שמנבא מחירי דירות, צעד אחר צעד.
+
+הרצה:
+    pip install streamlit pandas numpy matplotlib scikit-learn
+    streamlit run app.py
+"""
+
 import streamlit as st
+import pandas as pd
 import numpy as np
-from PIL import Image, ImageDraw
-import random
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_absolute_error, r2_score
 
-st.set_page_config(page_title="סיווג תמונות – למתחילים", page_icon="🧠", layout="centered")
 
-st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;700;900&display=swap');
-* { font-family: 'Heebo', sans-serif; direction: rtl; }
-body, .stApp { background: #f7f5f0; color: #1a1a1a; }
-h1 { font-size: 2rem; font-weight: 900; }
-h2 { font-size: 1.3rem; font-weight: 700; border-bottom: 3px solid #1a1a1a; padding-bottom: 6px; }
-.card { background: white; border-radius: 12px; padding: 1.4rem 1.6rem; margin-bottom: 1.2rem; border: 1.5px solid #e0ddd8; box-shadow: 2px 3px 0px #d0ccc4; }
-.step { display: inline-block; width: 30px; height: 30px; background: #1a1a1a; color: white; border-radius: 50%; font-weight: 900; text-align: center; line-height: 30px; margin-left: 8px; }
-.tip { background: #fffbeb; border-right: 4px solid #f59e0b; padding: 0.7rem 1rem; border-radius: 0 8px 8px 0; font-size: 0.9rem; margin: 0.8rem 0; }
-.code-area { background: #1a1a1a; color: #a8ff78; border-radius: 8px; padding: 1rem; font-family: monospace; font-size: 0.82rem; line-height: 1.7; white-space: pre; overflow-x: auto; margin-top: 0.8rem; }
-.result-ok  { background: #f0fdf4; border: 2px solid #22c55e; border-radius: 10px; padding: 1rem; text-align: center; font-size: 1.3rem; font-weight: 900; }
-.result-bad { background: #fff7ed; border: 2px solid #f97316; border-radius: 10px; padding: 1rem; text-align: center; font-size: 1.3rem; font-weight: 900; }
-.bar-wrap { background: #e5e7eb; border-radius: 6px; height: 28px; overflow: hidden; display: flex; margin: 0.5rem 0; }
-.bar-train { background: #1a1a1a; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 0.85rem; }
-.bar-test  { background: #f97316; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 0.85rem; }
-.dot-row { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
-.dot { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; }
-</style>
-""", unsafe_allow_html=True)
+# ============================================================
+# הגדרות כלליות + תמיכה ב-RTL (עברית)
+# ============================================================
+st.set_page_config(
+    page_title="חיזוי מחירי דירות",
+    page_icon="🏠",
+    layout="wide",
+)
 
-# ─── פונקציות עזר ────────────────────────────────────────────
+st.markdown(
+    """
+    <style>
+    html, body, [class*="css"], .main, .block-container, [data-testid="stSidebar"] {
+        direction: rtl;
+        text-align: right;
+    }
+    h1, h2, h3, h4, h5, p, li, label, div { text-align: right; }
+    .stRadio > div { direction: rtl; }
+    .big-number {
+        font-size: 38px;
+        font-weight: bold;
+        color: #1f77b4;
+    }
+    .step-box {
+        background-color: #f0f8ff;
+        padding: 16px;
+        border-right: 5px solid #1f77b4;
+        border-radius: 6px;
+        margin: 10px 0;
+    }
+    .tip-box {
+        background-color: #fff8dc;
+        padding: 14px;
+        border-right: 5px solid #ffa500;
+        border-radius: 6px;
+        margin: 10px 0;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
-def make_image(kind, seed=0):
-    """תמונה פשוטה: עיגול כחול = חתול | מלבן חום = כלב"""
-    random.seed(seed); np.random.seed(seed)
-    img = Image.new("RGB", (80, 80), (230, 225, 215))
-    d = ImageDraw.Draw(img)
-    if kind == "cat":
-        d.ellipse([14, 14, 66, 66], fill=(90, 130, 200))
-        d.polygon([(20,22),(10,4),(30,16)], fill=(70,110,180))
-        d.polygon([(60,22),(70,4),(50,16)], fill=(70,110,180))
-    else:
-        d.rectangle([14, 20, 66, 66], fill=(200, 128, 75))
-        d.rectangle([ 8, 16, 24, 34], fill=(170, 100, 55))
-        d.rectangle([56, 16, 72, 34], fill=(170, 100, 55))
-    noise = np.random.randint(-10, 10, (80, 80, 3))
-    arr = np.clip(np.array(img).astype(int) + noise, 0, 255).astype(np.uint8)
-    return Image.fromarray(arr)
 
-def blue_feature(img):
-    """feature יחיד: ממוצע ערוץ כחול"""
-    arr = np.array(img.resize((20, 20))).astype(float)
-    return arr[:, :, 2].mean() / 255.0
+# ============================================================
+# יצירת מאגר נתונים פשוט (סינתטי) - מחירי דירות
+# ============================================================
+@st.cache_data
+def create_data(n: int = 200) -> pd.DataFrame:
+    """יוצרים מאגר דירות מציאותי כדי שהתלמידים יוכלו להבין את הקשרים."""
+    rng = np.random.default_rng(seed=42)
+    size = rng.integers(40, 200, n)                       # גודל במ"ר
+    rooms = np.clip(np.round(size / 25 + rng.normal(0, 0.5, n)), 1, 6).astype(int)
+    age = rng.integers(0, 50, n)                          # גיל הבניין
+    distance = np.round(rng.uniform(1, 30, n), 1)         # מרחק ממרכז העיר
 
-def random_predict(_img):
-    pred = random.choice(["חתול 🐱", "כלב 🐶"])
-    return pred, random.uniform(0.45, 0.60)
+    # נוסחה "אמיתית" שהמודל צריך ללמוד (בתוספת רעש)
+    price = (
+        size * 25_000
+        + rooms * 50_000
+        - age * 5_000
+        - distance * 10_000
+        + rng.normal(0, 100_000, n)
+    )
+    price = np.clip(price, 500_000, None).round(-3).astype(int)
 
-def smart_predict(img):
-    b = blue_feature(img)
-    if b > 0.45:
-        return "חתול 🐱", round(min(0.95, 0.5 + b), 2)
-    else:
-        return "כלב 🐶",  round(min(0.95, 1.1 - b), 2)
+    df = pd.DataFrame({
+        "size_sqm": size,
+        "rooms": rooms,
+        "age_years": age,
+        "distance_km": distance,
+        "price_ils": price,
+    })
+    return df
 
-def is_correct(pred, kind):
-    return ("חתול" in pred and kind == "cat") or ("כלב" in pred and kind == "dog")
 
-# ─── כותרת ───────────────────────────────────────────────────
+HEBREW_NAMES = {
+    "size_sqm": 'גודל (מ"ר)',
+    "rooms": "מספר חדרים",
+    "age_years": "גיל הבניין (שנים)",
+    "distance_km": 'מרחק ממרכז העיר (ק"מ)',
+    "price_ils": 'מחיר (ש"ח)',
+}
 
-st.markdown("# 🧠 איך מחשב לומד לזהות תמונות?")
-st.markdown("מדריך למתחילים — **ללא נוסחאות, רק הבנה!**")
-st.markdown("---")
+df = create_data()
+features = ["size_sqm", "rooms", "age_years", "distance_km"]
+target = "price_ils"
 
-# ══════════════════════════════════════════════════════════════
-# שלב 1 – דאטה
-# ══════════════════════════════════════════════════════════════
-st.markdown("## <span class='step'>1</span> הדאטה – תמונות עם תשובות", unsafe_allow_html=True)
-st.markdown('<div class="card">', unsafe_allow_html=True)
-st.markdown("המחשב צריך **דוגמאות עם תשובות** כדי ללמוד. בדיוק כמו ספר תרגילים עם פתרונות.")
-st.markdown('<div class="tip">💡 כל תמונה = טבלה של מספרים (פיקסלים). תמונה 80×80 = 19,200 מספרים!</div>', unsafe_allow_html=True)
 
-st.markdown("**חתולים 🐱** — תווית: 0")
-cols = st.columns(6)
-for i, col in enumerate(cols):
-    col.image(make_image("cat", i), use_container_width=True)
+# ============================================================
+# אימון המודל פעם אחת ושמירה במטמון
+# ============================================================
+@st.cache_resource
+def train_model(df: pd.DataFrame):
+    X = df[features]
+    y = df[target]
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
+    model = LinearRegression()
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+    return model, X_train, X_test, y_train, y_test, y_pred
 
-st.markdown("**כלבים 🐶** — תווית: 1")
-cols = st.columns(6)
-for i, col in enumerate(cols):
-    col.image(make_image("dog", i+20), use_container_width=True)
 
-st.markdown("""<div class="code-area">תמונות = [🐱, 🐱, 🐶, 🐱, 🐶, ...]
-תוויות = [ 0,  0,  1,  0,  1, ...]   # 0=חתול, 1=כלב</div>""", unsafe_allow_html=True)
-st.markdown('</div>', unsafe_allow_html=True)
+model, X_train, X_test, y_train, y_test, y_pred = train_model(df)
 
-# ══════════════════════════════════════════════════════════════
-# שלב 2 – Train / Test
-# ══════════════════════════════════════════════════════════════
-st.markdown("## <span class='step'>2</span> מחלקים לאימון ובדיקה", unsafe_allow_html=True)
-st.markdown('<div class="card">', unsafe_allow_html=True)
-st.markdown("שומרים חלק מהתמונות בצד — המחשב **לא רואה אותן** בזמן האימון. הן ישמשו כ'בחינה' בסוף.")
 
-test_pct = st.slider("כמה אחוז לבדיקה?", 10, 40, 20, 10)
-train_pct = 100 - test_pct
-st.markdown(f"""
-<div class="bar-wrap">
-  <div class="bar-train" style="width:{train_pct}%">אימון {train_pct}%</div>
-  <div class="bar-test"  style="width:{test_pct}%">בדיקה {test_pct}%</div>
-</div>
-""", unsafe_allow_html=True)
+# ============================================================
+# סרגל הניווט
+# ============================================================
+st.sidebar.title("🏠 סרגל ניווט")
+st.sidebar.markdown("בחרו שלב כדי ללמוד יחד צעד אחר צעד 👇")
 
-st.markdown('<div class="tip">💡 בדרך כלל: 80% אימון, 20% בדיקה.</div>', unsafe_allow_html=True)
-st.markdown("""<div class="code-area">from sklearn.model_selection import train_test_split
+page = st.sidebar.radio(
+    "שלבי הלמידה:",
+    [
+        "1️⃣ מבוא — מה זה Machine Learning?",
+        "2️⃣ הכרת הנתונים",
+        "3️⃣ חקירה ויזואלית",
+        "4️⃣ הכנת הנתונים למודל",
+        "5️⃣ אימון המודל",
+        "6️⃣ הערכת המודל",
+        "7️⃣ נסו בעצמכם — חיזוי בלייב!",
+        "8️⃣ סיכום ומה הלאה?",
+    ],
+)
+
+st.sidebar.markdown("---")
+st.sidebar.info(
+    "💡 **טיפ:** התקדמו בסדר השלבים — כל שלב נבנה על הקודם.\n\n"
+    "הקובץ הוא `app.py` יחיד, ניתן לפתוח ולקרוא את הקוד."
+)
+
+
+# ============================================================
+# 1️⃣ מבוא
+# ============================================================
+if page.startswith("1"):
+    st.title("🏠 חיזוי מחירי דירות בעזרת מחשב")
+    st.markdown("### ברוכים הבאים לעולם ה-Machine Learning! 🤖")
+
+    st.markdown(
+        """
+        <div class="step-box">
+        <b>השאלה שלנו היום:</b><br>
+        אם אני מספר לכם שיש דירה בגודל 90 מ"ר, עם 3 חדרים, בת 10 שנים,
+        במרחק 5 ק"מ ממרכז העיר — <b>כמה היא צריכה לעלות?</b> 🤔
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.subheader("מה זה בעצם Machine Learning?")
+    st.markdown(
+        """
+        דמיינו שאתם רואים הרבה דירות עם המחירים שלהן.
+        אחרי כמה דוגמאות אתם מתחילים להרגיש "מה הגיוני":
+
+        - דירה גדולה יותר ➜ עולה יותר 💰
+        - דירה ישנה יותר ➜ עולה פחות 📉
+        - דירה רחוקה ממרכז העיר ➜ עולה פחות 🛣️
+
+        **למידת מכונה (Machine Learning)** היא בדיוק זה —
+        אנחנו נותנים למחשב הרבה דוגמאות, והוא לומד את הכללים בעצמו.
+        """
+    )
+
+    st.subheader("מה נעשה בפרויקט הזה?")
+    cols = st.columns(4)
+    cols[0].markdown("#### 1. נתונים 📊")
+    cols[0].write("נסתכל על דירות שכבר נמכרו.")
+    cols[1].markdown("#### 2. חקירה 🔍")
+    cols[1].write("נבין מי משפיע על המחיר.")
+    cols[2].markdown("#### 3. אימון 🧠")
+    cols[2].write("נלמד את המחשב לחזות.")
+    cols[3].markdown("#### 4. חיזוי 🎯")
+    cols[3].write("נבדוק כמה הוא טוב.")
+
+    st.markdown(
+        """
+        <div class="tip-box">
+        🎯 בסוף האפליקציה תוכלו להזין נתונים של דירה משלכם
+        והמחשב יגיד לכם <b>כמה הוא חושב שהיא שווה</b>!
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+# ============================================================
+# 2️⃣ הכרת הנתונים
+# ============================================================
+elif page.startswith("2"):
+    st.title("2️⃣ הכרת הנתונים 📊")
+    st.markdown(
+        """
+        כל פרויקט של Machine Learning מתחיל ב**נתונים**.
+        לפנינו מאגר של 200 דירות שנמכרו, יחד עם מאפיינים שונים שלהן.
+        """
+    )
+
+    st.subheader("מה יש בטבלה?")
+    st.markdown(
+        """
+        - **גודל (מ"ר)** — כמה גדולה הדירה.
+        - **מספר חדרים** — כמה חדרים יש בה.
+        - **גיל הבניין (שנים)** — כמה שנים הבניין קיים.
+        - **מרחק ממרכז העיר (ק"מ)** — כמה רחוקה הדירה מהמרכז.
+        - **מחיר (ש"ח)** — *זה מה שאנחנו רוצים לחזות!* 🎯
+        """
+    )
+
+    st.subheader("כך נראים הנתונים שלנו (10 דירות ראשונות):")
+    st.dataframe(
+        df.head(10).rename(columns=HEBREW_NAMES),
+        use_container_width=True,
+    )
+
+    st.subheader("📈 סטטיסטיקה בסיסית")
+    st.markdown("בואו נראה מה הממוצע, המינימום, המקסימום של כל עמודה:")
+    st.dataframe(
+        df.describe().round(0).rename(columns=HEBREW_NAMES),
+        use_container_width=True,
+    )
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("מספר דירות", f"{len(df):,}")
+    c2.metric('מחיר ממוצע (ש"ח)', f"{int(df[target].mean()):,}")
+    c3.metric('גודל ממוצע (מ"ר)', f"{int(df['size_sqm'].mean())}")
+
+    st.markdown(
+        """
+        <div class="tip-box">
+        🧠 <b>מושג חשוב:</b><br>
+        - <b>Features (תכונות / X):</b> הדברים שאנחנו <i>יודעים</i> על הדירה
+        (גודל, חדרים, גיל, מרחק).<br>
+        - <b>Target (מטרה / y):</b> הדבר שאנחנו <i>רוצים לחזות</i> — המחיר.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+# ============================================================
+# 3️⃣ חקירה ויזואלית
+# ============================================================
+elif page.startswith("3"):
+    st.title("3️⃣ חקירה ויזואלית 🔍")
+    st.markdown(
+        """
+        לפני שאנחנו בונים מודל, חשוב לראות **תמונות** של הנתונים.
+        ככה נבין אילו תכונות באמת משפיעות על המחיר.
+        """
+    )
+
+    st.subheader("איך כל תכונה קשורה למחיר?")
+    feature_he = st.selectbox(
+        "בחרו תכונה כדי לראות את הקשר שלה למחיר:",
+        options=features,
+        format_func=lambda x: HEBREW_NAMES[x],
+    )
+
+    fig, ax = plt.subplots(figsize=(8, 4.5))
+    ax.scatter(df[feature_he], df[target], alpha=0.6, color="#1f77b4")
+    ax.set_xlabel(HEBREW_NAMES[feature_he][::-1])  # היפוך לעברית במטפלוטליב
+    ax.set_ylabel(HEBREW_NAMES[target][::-1])
+    ax.set_title(("קשר בין " + HEBREW_NAMES[feature_he] + " למחיר")[::-1])
+    ax.grid(alpha=0.3)
+    st.pyplot(fig)
+
+    st.markdown(
+        """
+        <div class="step-box">
+        🟢 אם הנקודות עולות משמאל לימין ➜ ככל שהתכונה גדלה, המחיר עולה (קשר חיובי).<br>
+        🔴 אם הנקודות יורדות ➜ ככל שהתכונה גדלה, המחיר יורד (קשר שלילי).<br>
+        ⚪ אם הנקודות מפוזרות אקראית ➜ אין קשר משמעותי.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.subheader("📊 מטריצת מתאמים (Correlation)")
+    st.markdown(
+        "מספר בין -1 ל-1 שמראה כמה שתי תכונות קשורות. "
+        "ככל שהוא קרוב ל-1 או -1 — הקשר חזק יותר."
+    )
+    corr = df.corr().round(2)
+    fig2, ax2 = plt.subplots(figsize=(6, 4))
+    cax = ax2.imshow(corr, cmap="coolwarm", vmin=-1, vmax=1)
+    ax2.set_xticks(range(len(corr.columns)))
+    ax2.set_yticks(range(len(corr.columns)))
+    ax2.set_xticklabels(corr.columns, rotation=45, ha="right")
+    ax2.set_yticklabels(corr.columns)
+    for i in range(len(corr.columns)):
+        for j in range(len(corr.columns)):
+            ax2.text(j, i, f"{corr.iloc[i, j]:.2f}", ha="center", va="center", color="black")
+    fig2.colorbar(cax)
+    st.pyplot(fig2)
+
+    st.markdown(
+        """
+        <div class="tip-box">
+        🔎 <b>מה לחפש?</b> בעמודת <code>price_ils</code> — איזו תכונה הכי
+        מתואמת עם המחיר? (רמז: תסתכלו מי הכי קרוב ל-1 או ל--1)
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+# ============================================================
+# 4️⃣ הכנת הנתונים למודל
+# ============================================================
+elif page.startswith("4"):
+    st.title("4️⃣ הכנת הנתונים למודל 🧹")
+
+    st.markdown(
+        """
+        לפני שמלמדים את המחשב, צריך לארגן את הנתונים בצורה מסודרת.
+        אנחנו עושים שני דברים:
+        """
+    )
+
+    st.subheader("שלב א: מפרידים בין X (תכונות) ל-y (מטרה)")
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown("**X — מה שיודעים על הדירה:**")
+        st.dataframe(df[features].head().rename(columns=HEBREW_NAMES), use_container_width=True)
+    with c2:
+        st.markdown("**y — מה שרוצים לחזות (המחיר):**")
+        st.dataframe(df[[target]].head().rename(columns=HEBREW_NAMES), use_container_width=True)
+
+    st.subheader("שלב ב: מחלקים לאימון ומבחן (Train / Test)")
+    st.markdown(
+        """
+        זה אחד **הרעיונות הכי חשובים** בלמידת מכונה!
+
+        - 📚 **Train (אימון - 80%)** — דוגמאות שהמודל רואה ולומד מהן.
+        - 📝 **Test (מבחן - 20%)** — דוגמאות שהמודל **לא ראה**, ובהן בודקים אם הוא באמת למד.
+
+        זה בדיוק כמו בית ספר: לומדים על דוגמאות במחברת,
+        ואז עושים מבחן על שאלות חדשות. אם תלמיד יראה את המבחן מראש — אי אפשר לדעת אם הוא באמת מבין!
+        """
+    )
+
+    fig, ax = plt.subplots(figsize=(7, 1.5))
+    ax.barh([0], [80], color="#2ca02c", label="Train (80%)")
+    ax.barh([0], [20], left=[80], color="#d62728", label="Test (20%)")
+    ax.set_xlim(0, 100)
+    ax.set_yticks([])
+    ax.set_xlabel("אחוז מהנתונים"[::-1])
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.4), ncol=2)
+    st.pyplot(fig)
+
+    c1, c2 = st.columns(2)
+    c1.metric("גודל קבוצת אימון", f"{len(X_train)} דירות")
+    c2.metric("גודל קבוצת מבחן", f"{len(X_test)} דירות")
+
+    with st.expander("📜 הקוד שעשה את זה"):
+        st.code(
+            """
+from sklearn.model_selection import train_test_split
+
+X = df[["size_sqm", "rooms", "age_years", "distance_km"]]
+y = df["price_ils"]
 
 X_train, X_test, y_train, y_test = train_test_split(
-    תמונות, תוויות, test_size=0.2
-)</div>""", unsafe_allow_html=True)
-st.markdown('</div>', unsafe_allow_html=True)
+    X, y, test_size=0.2, random_state=42
+)
+            """,
+            language="python",
+        )
 
-# ══════════════════════════════════════════════════════════════
-# שלב 3 – Baseline
-# ══════════════════════════════════════════════════════════════
-st.markdown("## <span class='step'>3</span> נקודת פתיחה: ניחוש אקראי (~50%)", unsafe_allow_html=True)
-st.markdown('<div class="card">', unsafe_allow_html=True)
-st.markdown("לפני שבונים מודל חכם — כמה דיוק מקבלים **בלי להשקיע כלום**?")
 
-if st.button("🎲 הנחש 10 תמונות אקראית"):
-    kinds = [random.choice(["cat","dog"]) for _ in range(10)]
-    imgs  = [make_image(k, i+100) for i, k in enumerate(kinds)]
-    preds = [random_predict(img)[0] for img in imgs]
-    correct_count = sum(is_correct(p, k) for p, k in zip(preds, kinds))
+# ============================================================
+# 5️⃣ אימון המודל
+# ============================================================
+elif page.startswith("5"):
+    st.title("5️⃣ אימון המודל 🧠")
 
-    cols = st.columns(10)
-    for col, img, pred, kind in zip(cols, imgs, preds, kinds):
-        col.image(img, use_container_width=True)
-        col.markdown("✅" if is_correct(pred, kind) else "❌")
+    st.markdown(
+        """
+        עכשיו לחלק הכייפי! נלמד את המחשב לחזות מחירים.
+        נשתמש במודל הכי פשוט וידידותי שיש: **רגרסיה לינארית (Linear Regression)**.
+        """
+    )
 
-    st.markdown(f"### תוצאה: **{correct_count}/10** נכון = **{correct_count*10}%** דיוק")
-    st.markdown('<div class="tip">💡 ניחוש אקראי נותן ~50%. כל מודל חייב לעשות יותר מזה!</div>', unsafe_allow_html=True)
+    st.subheader("מה זה רגרסיה לינארית? 📐")
+    st.markdown(
+        r"""
+        המודל מנסה למצוא נוסחה פשוטה בצורה הזאת:
 
-st.markdown("""<div class="code-area">def random_predict(image):
-    return random.choice(["חתול", "כלב"])  # מנחש בלי להסתכל!
+        $$
+        \text{מחיר} = w_1 \cdot \text{גודל} + w_2 \cdot \text{חדרים}
+                  + w_3 \cdot \text{גיל} + w_4 \cdot \text{מרחק} + b
+        $$
 
-# דיוק צפוי: ~50% (כי יש 2 מחלקות שוות)</div>""", unsafe_allow_html=True)
-st.markdown('</div>', unsafe_allow_html=True)
+        - כל $w$ הוא **משקל** — כמה התכונה משפיעה על המחיר.
+        - $b$ זה **הקבוע** (intercept) — נקודת ההתחלה.
 
-# ══════════════════════════════════════════════════════════════
-# שלב 4 – מודל חכם
-# ══════════════════════════════════════════════════════════════
-st.markdown("## <span class='step'>4</span> מודל חכם — לומד מאפיין אחד", unsafe_allow_html=True)
-st.markdown('<div class="card">', unsafe_allow_html=True)
-st.markdown("המודל שלנו לומד **feature אחד בלבד**: כמה **כחול** יש בתמונה?")
-st.markdown("חתולים בדאטה שלנו = **כחולים** | כלבים = **חומים**")
-st.markdown('<div class="tip">💡 CNN אמיתי לומד אלפי features לבד. כאן אנחנו לומדים אחד ידנית — כדי להבין את הרעיון.</div>', unsafe_allow_html=True)
+        המודל מנסה הרבה ערכים שונים של $w$ ו-$b$, עד שהוא מוצא את הצירוף
+        שמסביר הכי טוב את הנתונים שלנו. 🪄
+        """
+    )
 
-# ויזואליזציה פשוטה עם HTML במקום matplotlib
-cat_blues = [blue_feature(make_image("cat", i)) for i in range(12)]
-dog_blues = [blue_feature(make_image("dog", i)) for i in range(12)]
+    st.subheader("המשקלים שהמודל למד מהנתונים שלנו:")
+    weights = pd.DataFrame(
+        {
+            "תכונה": [HEBREW_NAMES[f] for f in features],
+            "משקל (w)": np.round(model.coef_, 1),
+        }
+    )
+    st.dataframe(weights, use_container_width=True)
 
-st.markdown("**כמה כחול יש בכל תמונה? (0 = אין, 1 = הרבה)**")
+    st.write(f"**הקבוע (b):** `{model.intercept_:,.0f}` ש\"ח")
 
-st.markdown("חתולים 🐱")
-dots_html = '<div class="dot-row">'
-for b in cat_blues:
-    pct = int(b * 100)
-    dots_html += f'<div class="dot" style="background:rgb(30,{int(80+b*150)},{int(150+b*100)})" title="{pct}%">{pct}</div>'
-dots_html += '</div>'
-st.markdown(dots_html, unsafe_allow_html=True)
+    st.markdown(
+        """
+        <div class="tip-box">
+        🧠 <b>איך קוראים את הטבלה?</b><br>
+        משקל חיובי גדול ➜ התכונה <b>מעלה</b> את המחיר.<br>
+        משקל שלילי ➜ התכונה <b>מורידה</b> את המחיר.<br>
+        לדוגמה: כל מ"ר נוסף מוסיף לדירה בערך כך וכך שקלים. 💸
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-st.markdown("כלבים 🐶")
-dots_html = '<div class="dot-row">'
-for b in dog_blues:
-    pct = int(b * 100)
-    dots_html += f'<div class="dot" style="background:rgb({int(160+b*50)},{int(90+b*40)},{int(40+b*80)})" title="{pct}%">{pct}</div>'
-dots_html += '</div>'
-st.markdown(dots_html, unsafe_allow_html=True)
+    with st.expander("📜 הקוד שאימן את המודל"):
+        st.code(
+            """
+from sklearn.linear_model import LinearRegression
 
-st.markdown("**גבול ההחלטה: אם כחוליות > 45 → חתול, אחרת → כלב**")
+model = LinearRegression()
+model.fit(X_train, y_train)   # ← זה השלב שבו המחשב לומד!
+            """,
+            language="python",
+        )
 
-st.markdown("""<div class="code-area">def feature(תמונה):
-    # ממוצע ערוץ כחול (0–255), מנורמל ל-0–1
-    return תמונה[:, :, 2].mean() / 255
 
-def חזה(תמונה):
-    כחוליות = feature(תמונה)
-    if כחוליות > 0.45:
-        return "חתול"   # כחול = חתול
-    else:
-        return "כלב"    # חום = כלב</div>""", unsafe_allow_html=True)
-st.markdown('</div>', unsafe_allow_html=True)
+# ============================================================
+# 6️⃣ הערכת המודל
+# ============================================================
+elif page.startswith("6"):
+    st.title("6️⃣ הערכת המודל 🎯")
+    st.markdown(
+        "אימנו את המודל על קבוצת ה-Train. עכשיו נבדוק עליו את "
+        "**קבוצת המבחן (Test)** — דירות שהוא מעולם לא ראה."
+    )
 
-# ══════════════════════════════════════════════════════════════
-# שלב 5 – נסה בעצמך
-# ══════════════════════════════════════════════════════════════
-st.markdown("## <span class='step'>5</span> נסה בעצמך — מי מנחש טוב יותר?", unsafe_allow_html=True)
-st.markdown('<div class="card">', unsafe_allow_html=True)
+    mae = mean_absolute_error(y_test, y_pred)
+    r2 = r2_score(y_test, y_pred)
 
-choice = st.radio("בחר תמונה:", ["חתול 🐱", "כלב 🐶", "הפתע אותי! 🎲"], horizontal=True)
-kind = {"חתול 🐱": "cat", "כלב 🐶": "dog"}.get(choice, random.choice(["cat","dog"]))
-seed = random.randint(0, 999) if "הפתע" in choice else 77
-img = make_image(kind, seed)
+    c1, c2 = st.columns(2)
+    c1.markdown("#### MAE — שגיאה ממוצעת")
+    c1.markdown(f'<div class="big-number">{mae:,.0f} ש"ח</div>', unsafe_allow_html=True)
+    c1.caption("בממוצע, כמה המודל מפספס במחיר של דירה.")
 
-col_img, col_res = st.columns([1, 2])
-with col_img:
-    st.image(img, width=130)
-    true_name = "חתול 🐱" if kind == "cat" else "כלב 🐶"
-    st.markdown(f"**תשובה נכונה:** {true_name}")
+    c2.markdown("#### R² — איכות המודל")
+    c2.markdown(f'<div class="big-number">{r2:.2%}</div>', unsafe_allow_html=True)
+    c2.caption("ככל שהמספר קרוב ל-100%, המודל מסביר טוב יותר את המחיר.")
 
-with col_res:
-    r_pred, r_conf = random_predict(img)
-    s_pred, s_conf = smart_predict(img)
-    r_ok = is_correct(r_pred, kind)
-    s_ok = is_correct(s_pred, kind)
+    st.subheader("🔭 חיזוי מול מציאות")
+    st.markdown(
+        "כל נקודה היא דירה אחת מקבוצת המבחן. אם המודל היה מושלם, "
+        "כל הנקודות היו על הקו האדום."
+    )
+
+    fig, ax = plt.subplots(figsize=(7, 5))
+    ax.scatter(y_test, y_pred, alpha=0.6, color="#1f77b4", label="חיזויים")
+    lo = min(y_test.min(), y_pred.min())
+    hi = max(y_test.max(), y_pred.max())
+    ax.plot([lo, hi], [lo, hi], "r--", label="מודל מושלם")
+    ax.set_xlabel("מחיר אמיתי"[::-1])
+    ax.set_ylabel("מחיר שהמודל ניבא"[::-1])
+    ax.set_title("חיזוי מול מציאות"[::-1])
+    ax.legend()
+    ax.grid(alpha=0.3)
+    st.pyplot(fig)
+
+    st.subheader("📋 דוגמאות מתוך המבחן")
+    sample = pd.DataFrame({
+        'מחיר אמיתי (ש"ח)': y_test.values[:10].astype(int),
+        'חיזוי המודל (ש"ח)': y_pred[:10].astype(int),
+        'הפרש (ש"ח)': (y_pred[:10] - y_test.values[:10]).astype(int),
+    })
+    st.dataframe(sample, use_container_width=True)
+
+    st.markdown(
+        """
+        <div class="tip-box">
+        🤔 <b>שאלה לתלמידים:</b> איך אפשר לשפר את המודל?<br>
+        - להוסיף עוד תכונות (למשל: יש מעלית? קומה?)<br>
+        - לאסוף יותר דירות לאימון.<br>
+        - לנסות מודלים מתקדמים יותר (Decision Tree, Random Forest…).
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+# ============================================================
+# 7️⃣ נסו בעצמכם
+# ============================================================
+elif page.startswith("7"):
+    st.title("7️⃣ נסו בעצמכם — חיזוי בלייב! 🪄")
+    st.markdown(
+        "הזינו פרטים של דירה דמיונית, והמודל יגיד לכם כמה לדעתו היא שווה."
+    )
 
     c1, c2 = st.columns(2)
     with c1:
-        cls = "result-ok" if r_ok else "result-bad"
-        st.markdown(f'<div class="{cls}">🎲 אקראי<br>{r_pred}<br><small>ביטחון: {r_conf:.0%}</small></div>', unsafe_allow_html=True)
+        size = st.slider('גודל הדירה (מ"ר)', 30, 220, 90, step=5)
+        rooms = st.slider("מספר חדרים", 1, 7, 3)
     with c2:
-        cls = "result-ok" if s_ok else "result-bad"
-        st.markdown(f'<div class="{cls}">🧠 חכם<br>{s_pred}<br><small>ביטחון: {s_conf:.0%}</small></div>', unsafe_allow_html=True)
+        age = st.slider("גיל הבניין (שנים)", 0, 60, 10)
+        distance = st.slider('מרחק ממרכז העיר (ק"מ)', 0.0, 35.0, 5.0, step=0.5)
 
-st.markdown('</div>', unsafe_allow_html=True)
+    new_apartment = pd.DataFrame(
+        [[size, rooms, age, distance]],
+        columns=features,
+    )
+    prediction = float(model.predict(new_apartment)[0])
 
-# ══════════════════════════════════════════════════════════════
-# שלב 6 – CNN
-# ══════════════════════════════════════════════════════════════
-st.markdown("## <span class='step'>6</span> בעולם האמיתי — מה זה CNN?", unsafe_allow_html=True)
-st.markdown('<div class="card">', unsafe_allow_html=True)
-st.markdown("""
-| המודל שלנו | CNN אמיתי |
-|---|---|
-| feature אחד בידי אדם | אלפי features אוטומטיים |
-| כלל פשוט (כחול → חתול) | שכבות מורכבות שהמחשב מצא |
-| ~70% דיוק | ~95% דיוק |
-""")
-st.markdown('<div class="tip">💡 CNN = Convolutional Neural Network. המחשב מחפש קצוות, צורות, אוזניים... בשכבות. כל שכבה בונה על הקודמת.</div>', unsafe_allow_html=True)
+    st.markdown("### 🎯 לפי המודל, הדירה שלכם שווה:")
+    st.markdown(
+        f'<div class="big-number">{prediction:,.0f} ש"ח</div>',
+        unsafe_allow_html=True,
+    )
 
-st.markdown("""<div class="code-area">import tensorflow as tf
+    st.markdown("---")
+    st.subheader("🧮 איך הגענו למספר הזה?")
+    breakdown = pd.DataFrame(
+        {
+            "תכונה": [HEBREW_NAMES[f] for f in features],
+            "ערך שהזנתם": [size, rooms, age, distance],
+            "משקל (w)": np.round(model.coef_, 1),
+            'תרומה למחיר (ש"ח)': np.round(
+                model.coef_ * np.array([size, rooms, age, distance]), 0
+            ).astype(int),
+        }
+    )
+    st.dataframe(breakdown, use_container_width=True)
+    st.write(f'➕ קבוע (b): **{model.intercept_:,.0f} ש"ח**')
+    st.write(f'🟰 סכום הכול: **{prediction:,.0f} ש"ח**')
 
-model = tf.keras.Sequential([
-    tf.keras.layers.Conv2D(32, 3, activation='relu'),  # מחפש קצוות
-    tf.keras.layers.MaxPooling2D(),                    # מדחס מידע
-    tf.keras.layers.Conv2D(64, 3, activation='relu'),  # מחפש צורות
-    tf.keras.layers.Flatten(),                         # מיישר לרשימה
-    tf.keras.layers.Dense(1, activation='sigmoid'),    # מחליט: חתול/כלב
-])
+    st.markdown(
+        """
+        <div class="tip-box">
+        🎲 <b>נסו לשחק:</b><br>
+        - מה קורה כשמגדילים את הדירה ב-50 מ"ר?<br>
+        - מה הדירה היקרה ביותר שאפשר לבנות עם הסליידרים?<br>
+        - מה הזולה ביותר?
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-model.fit(X_train, y_train, epochs=10)   # לומד!
-model.evaluate(X_test, y_test)           # נבחן!</div>""", unsafe_allow_html=True)
-st.markdown('</div>', unsafe_allow_html=True)
 
-# ─── סיכום ───────────────────────────────────────────────────
-st.markdown("---")
-st.markdown("### 🎯 מה למדנו?")
-st.markdown("""
-1. **דאטה** — המחשב לומד מדוגמאות עם תשובות  
-2. **Train/Test** — חלק לאימון, חלק לבדיקה (כמו בחינה!)  
-3. **Baseline** — ניחוש אקראי = ~50%, זה הרף התחתון  
-4. **Feature** — מאפיין שעוזר להבדיל בין מחלקות  
-5. **CNN** — מוצא features לבד, מדויק הרבה יותר  
-""")
+# ============================================================
+# 8️⃣ סיכום
+# ============================================================
+elif page.startswith("8"):
+    st.title("8️⃣ סיכום ומה הלאה? 🚀")
+
+    st.markdown(
+        """
+        ### מה למדנו היום? 🎓
+        1. ❓ הגדרנו **בעיה** — לחזות מחירי דירות.
+        2. 📊 בדקנו את **הנתונים** והבנו מה יש בהם.
+        3. 🔍 **חקרנו** ויזואלית את הקשר בין תכונות למחיר.
+        4. 🧹 **הכנו** את הנתונים — חילקנו ל-X / y ול-Train / Test.
+        5. 🧠 **אימנו** מודל רגרסיה לינארית.
+        6. 🎯 **הערכנו** את המודל בעזרת MAE ו-R².
+        7. 🪄 השתמשנו במודל כדי **לחזות** מחיר של דירה חדשה.
+        """
+    )
+
+    st.markdown(
+        """
+        ### צעדים הבאים מומלצים 🌱
+        - להחליף את הדאטה במאגר אמיתי (למשל, House Prices מ-Kaggle).
+        - לנסות מודלים אחרים: `DecisionTreeRegressor`, `RandomForestRegressor`.
+        - להוסיף עוד תכונות: קומה, חניה, מעלית, אזור עירוני וכו'.
+        - לבדוק את ההבדל בין ביצועי Train ל-Test (Overfitting!).
+        """
+    )
+
+    st.markdown(
+        """
+        <div class="step-box">
+        💬 <b>הרעיון הכי חשוב לזכור:</b><br>
+        Machine Learning זה לא קסם — זה <b>למצוא דפוסים בנתונים</b>.<br>
+        ככל שהנתונים שלנו טובים ומגוונים יותר, המודל ילמד טוב יותר.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.balloons()
