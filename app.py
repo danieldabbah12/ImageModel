@@ -97,7 +97,7 @@ st.markdown('</div>', unsafe_allow_html=True)
 # ══════════════════════════════════════════════════════════════
 st.markdown("## <span class='step'>2</span> מחלקים לאימון ובדיקה", unsafe_allow_html=True)
 st.markdown('<div class="card">', unsafe_allow_html=True)
-st.markdown("שומרים חלק מהתמונות בצד — המחשב **לא רואה אותן** בזמן האימון. הן ישמשו כ"בחינה" בסוף.")
+st.markdown("שומרים חלק מהתמונות בצד — המחשב **לא רואה אותן** בזמן האימון. הן ישמשו כ'בחינה' בסוף.")
 
 test_pct = st.slider("כמה אחוז לבדיקה?", 10, 40, 20, 10)
 train_pct = 100 - test_pct
