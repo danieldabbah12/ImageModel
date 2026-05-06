@@ -56,10 +56,9 @@ def generate_dataset(n=2000, noise_ratio=0.05, random_state=42):
 
     return df
 
-df = generate_blood_test_dataset()
+df = generate_dataset()
 st.dataframe(df)
 
-import streamlit as st
 
 st.title("מתי משתמשים ב-Bar Chart?")
 
