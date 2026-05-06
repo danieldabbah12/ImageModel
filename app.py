@@ -6,8 +6,7 @@ import numpy as np
 # PAGE CONFIG
 # ──────────────────────────────────────────────
 st.set_page_config(
-    page_title="מדריך ויזואליזציה ב-Streamlit",
-    page_icon="📊",
+    page_title="Streamlit Visualization Guide",
     layout="wide",
 )
 
@@ -55,116 +54,87 @@ def generate_blood_test_dataset(n=100, noise_ratio=0.08, random_state=42):
 
 df = generate_blood_test_dataset()
 
-LABEL_MAP   = {1: "תקין", 0: "לא תקין"}
-df["label"] = df["test_normal"].map(LABEL_MAP)
-
 # ──────────────────────────────────────────────
 # STYLE
 # ──────────────────────────────────────────────
 st.markdown("""
 <style>
-    body, .stApp { direction: rtl; text-align: right; }
-    .big-title   { font-size: 2.4rem; font-weight: 800; color: #1a56db; margin-bottom: 0.2rem; }
-    .sub-title   { font-size: 1.1rem; color: #6b7280; margin-bottom: 2rem; }
     .section-box {
-        background: #f0f4ff;
-        border-right: 5px solid #1a56db;
-        border-radius: 8px;
-        padding: 1rem 1.2rem;
-        margin-bottom: 1.5rem;
-    }
-    .code-explain {
-        background: #1e293b;
-        color: #e2e8f0;
-        border-radius: 8px;
-        padding: 1rem 1.2rem;
-        font-family: monospace;
-        font-size: 0.88rem;
-        margin-bottom: 1rem;
-        white-space: pre-wrap;
-    }
-    .tag-discrete {
-        background: #fef3c7; color: #92400e;
-        border-radius: 20px; padding: 2px 10px;
-        font-size: 0.8rem; font-weight: 700;
-    }
-    .tag-continuous {
-        background: #dbeafe; color: #1e40af;
-        border-radius: 20px; padding: 2px 10px;
-        font-size: 0.8rem; font-weight: 700;
+        background: #f8fafc;
+        border-left: 5px solid #1a56db;
+        border-radius: 6px;
+        padding: 0.9rem 1.1rem;
+        margin-bottom: 1.2rem;
     }
     .tip-box {
-        background: #ecfdf5; border-right: 4px solid #10b981;
-        border-radius: 6px; padding: 0.7rem 1rem;
-        color: #065f46; margin-top: 0.5rem;
+        background: #f0fdf4;
+        border-left: 4px solid #16a34a;
+        border-radius: 6px;
+        padding: 0.7rem 1rem;
+        color: #14532d;
+        margin-top: 0.8rem;
     }
-    hr { border: none; border-top: 2px solid #e5e7eb; margin: 2rem 0; }
+    .tag {
+        display: inline-block;
+        border-radius: 20px;
+        padding: 2px 10px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    .tag-discrete   { background: #fef3c7; color: #92400e; }
+    .tag-continuous { background: #dbeafe; color: #1e40af; }
 </style>
 """, unsafe_allow_html=True)
 
 # ──────────────────────────────────────────────
-# HEADER
-# ──────────────────────────────────────────────
-st.markdown('<div class="big-title">📊 מדריך ויזואליזציה ב-Streamlit</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-title">מדריך מעשי לבניית גרפים — מבוסס על נתוני בדיקות דם</div>', unsafe_allow_html=True)
-
-# ──────────────────────────────────────────────
-# SIDEBAR – navigation
+# SIDEBAR
 # ──────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("## 🗂 ניווט")
-    section = st.radio("בחר נושא:", [
-        "1️⃣  הכרת ה-Dataset",
-        "2️⃣  נתון בדיד vs. רציף",
-        "3️⃣  Bar Chart — עמודות",
-        "4️⃣  Line Chart — קווים",
-        "5️⃣  Scatter Chart — פיזור",
-        "6️⃣  Histogram — התפלגות",
-        "7️⃣  Box Plot — תיבה",
+    st.markdown("## Navigation")
+    section = st.radio("Choose a topic:", [
+        "1. The Dataset",
+        "2. Discrete vs. Continuous",
+        "3. Bar Chart",
+        "4. Line Chart",
+        "5. Scatter Chart",
+        "6. Histogram",
     ])
     st.markdown("---")
-    st.info("🎯 **מטרה:** לחזות את השדה `test_normal`\n\n`1` = תקין | `0` = לא תקין")
+    st.markdown("**Goal:** predict `test_normal`\n\n`1` = normal result\n\n`0` = abnormal result")
 
 # ══════════════════════════════════════════════
-# SECTION 1 – Dataset overview
+# SECTION 1 – Dataset
 # ══════════════════════════════════════════════
-if section == "1️⃣  הכרת ה-Dataset":
-    st.header("🔬 הכרת ה-Dataset")
+if section == "1. The Dataset":
+    st.header("The Dataset")
 
     st.markdown("""
 <div class="section-box">
-לפני שמציירים גרפים — חשוב להבין מה יש לנו!<br>
-ה-Dataset מכיל <strong>100 שורות</strong>, כל שורה היא מטופל אחד.
+Before drawing charts, let's understand what we have.<br>
+The dataset has <strong>100 rows</strong> — each row is one patient.
 </div>
 """, unsafe_allow_html=True)
 
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("👤 מטופלים",       len(df))
-    col2.metric("📋 עמודות",        len(df.columns))
-    col3.metric("✅ תקינים",         int(df["test_normal"].sum()))
-    col4.metric("❌ לא תקינים",     int((df["test_normal"] == 0).sum()))
+    col1.metric("Patients",  len(df))
+    col2.metric("Columns",   len(df.columns))
+    col3.metric("Normal",    int(df["test_normal"].sum()))
+    col4.metric("Abnormal",  int((df["test_normal"] == 0).sum()))
 
-    st.markdown("### 👀 5 שורות ראשונות")
+    st.markdown("### First 5 rows")
     st.dataframe(df.head(), use_container_width=True)
 
-    st.markdown("### 📑 תיאור השדות")
-    fields = pd.DataFrame({
-        "שדה":        ["heart_rate", "body_temp", "protein_level", "white_blood_cells", "hemoglobin", "age", "gender", "test_normal"],
-        "משמעות":     ["דופק", "טמפרטורת גוף", "רמת חלבון", "תאי דם לבנים", "המוגלובין", "גיל", "מגדר (0/1)", "תוצאת הבדיקה"],
-        "סוג נתון":   ["רציף", "רציף", "רציף", "רציף", "רציף", "בדיד", "בדיד", "בדיד"],
+    st.markdown("### Column descriptions")
+    info = pd.DataFrame({
+        "Column":  ["heart_rate", "body_temp", "protein_level", "white_blood_cells", "hemoglobin", "age", "gender", "test_normal"],
+        "Meaning": ["Heart rate (bpm)", "Body temperature (C)", "Protein level (g/dL)", "White blood cell count", "Hemoglobin (g/dL)", "Age (years)", "Gender (0 / 1)", "Test result — TARGET"],
+        "Type":    ["Continuous", "Continuous", "Continuous", "Continuous", "Continuous", "Discrete", "Discrete", "Discrete"],
     })
-    st.dataframe(fields, use_container_width=True, hide_index=True)
+    st.dataframe(info, use_container_width=True, hide_index=True)
 
-    st.markdown("""
-<div class="tip-box">
-💡 <strong>המטרה שלנו:</strong> לחזות את <code>test_normal</code> — האם הבדיקה תקינה או לא.
-הגרפים שנציג יעזרו לנו להבין <em>אילו שדות מבדילים</em> בין המקרים.
-</div>
-""", unsafe_allow_html=True)
-
-    st.markdown("### 💻 הקוד ליצירת ה-Dataset")
-    st.code("""import streamlit as st
-import pandas as pd
+    st.markdown("### How to generate this dataset")
+    st.code("""import pandas as pd
 import numpy as np
 
 def generate_blood_test_dataset(n=100, noise_ratio=0.08, random_state=42):
@@ -201,340 +171,223 @@ st.dataframe(df.head())
 # ══════════════════════════════════════════════
 # SECTION 2 – Discrete vs Continuous
 # ══════════════════════════════════════════════
-elif section == "2️⃣  נתון בדיד vs. רציף":
-    st.header("🔢 נתון בדיד לעומת נתון רציף")
+elif section == "2. Discrete vs. Continuous":
+    st.header("Discrete vs. Continuous Data")
 
     col1, col2 = st.columns(2)
+
     with col1:
+        st.markdown('<span class="tag tag-discrete">Discrete</span>', unsafe_allow_html=True)
         st.markdown("""
-### 🟡 נתון בדיד (Discrete)
-<span class="tag-discrete">Discrete</span>
+A variable that can only take a **limited set of fixed values**.
 
-נתון שיכול לקבל **מספר קטן של ערכים קבועים**.
+**Examples in our dataset:**
+- `test_normal` — only `0` or `1`
+- `gender` — only `0` or `1`
+- `age` — whole numbers only
 
-**דוגמאות ב-Dataset שלנו:**
-- `test_normal` → רק `0` או `1`
-- `gender` → רק `0` או `1`
-- `age` → מספרים שלמים (18, 19, 20…)
+**Question we ask:**
+> "How many patients in each category?"
 
-**מה שואלים?**
-> "כמה מטופלים בכל קטגוריה?"
-
-**גרפים מתאימים: עמודות (Bar Chart)**
-""", unsafe_allow_html=True)
+**Best chart: Bar Chart**
+""")
 
     with col2:
+        st.markdown('<span class="tag tag-continuous">Continuous</span>', unsafe_allow_html=True)
         st.markdown("""
-### 🔵 נתון רציף (Continuous)
-<span class="tag-continuous">Continuous</span>
+A variable that can take **any value** within a range.
 
-נתון שיכול לקבל **כל ערך** בטווח מסוים.
+**Examples in our dataset:**
+- `heart_rate` — 60.0, 72.5, 95.3 ...
+- `body_temp` — 36.2, 37.1, 38.4 ...
+- `hemoglobin` — 11.5, 14.2 ...
 
-**דוגמאות ב-Dataset שלנו:**
-- `heart_rate` → 60.0, 72.5, 95.3…
-- `body_temp` → 36.2, 37.1, 38.4…
-- `hemoglobin` → 11.5, 14.2…
+**Question we ask:**
+> "What is the distribution? Is there a difference between groups?"
 
-**מה שואלים?**
-> "מה ההתפלגות? האם יש הבדל בין קבוצות?"
-
-**גרפים מתאימים: היסטוגרמה, פיזור, קופסה**
-""", unsafe_allow_html=True)
+**Best chart: Histogram, Scatter**
+""")
 
     st.markdown("---")
-    st.markdown("### 📊 השוואה מהירה")
-
+    st.markdown("### Quick comparison")
     compare = pd.DataFrame({
-        "תכונה":        ["ערכים אפשריים", "דוגמה בנתונים", "גרף מומלץ", "שאלה טיפוסית"],
-        "בדיד 🟡":      ["מספר קטן וקבוע", "gender: 0 או 1", "Bar Chart", "כמה מכל סוג?"],
-        "רציף 🔵":      ["אינסוף ערכים", "heart_rate: 72.3", "Histogram / Scatter", "מה הטווח? יש הבדל?"],
+        "Property":   ["Possible values", "Example",           "Best chart",        "Typical question"],
+        "Discrete":   ["Few, fixed",      "gender: 0 or 1",    "Bar Chart",         "How many in each group?"],
+        "Continuous": ["Infinite range",  "heart_rate: 72.3",  "Histogram/Scatter", "What is the range? Any difference?"],
     })
     st.dataframe(compare, use_container_width=True, hide_index=True)
 
     st.markdown("""
 <div class="tip-box">
-💡 <strong>כלל אצבע:</strong> אם אפשר לספור את מספר הערכים השונים על אצבעות — זה כנראה בדיד.
-אם יש הרבה ערכים שונים (כמו דופק) — זה רציף.
+Tip: if you can count all the possible values on one hand, it is probably discrete.
+If there are many different values (like heart rate), it is continuous.
 </div>
 """, unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════
 # SECTION 3 – Bar Chart
 # ══════════════════════════════════════════════
-elif section == "3️⃣  Bar Chart — עמודות":
-    st.header("📊 Bar Chart — גרף עמודות")
+elif section == "3. Bar Chart":
+    st.header("Bar Chart")
 
     st.markdown("""
 <div class="section-box">
-<span class="tag-discrete">מתאים לנתון בדיד</span><br><br>
-גרף עמודות מציג <strong>כמות</strong> של כל קטגוריה. הוא מושלם כאשר רוצים לראות
-<em>כמה מטופלים תקינים לעומת לא תקינים</em>.
+<span class="tag tag-discrete">Best for: Discrete data</span><br><br>
+A bar chart shows the <strong>count</strong> of each category.
+Use it to answer: <em>"How many patients are normal vs. abnormal?"</em>
 </div>
 """, unsafe_allow_html=True)
 
-    st.markdown("### 📌 דוגמה 1 — כמה מטופלים בכל תוצאה?")
+    st.markdown("### Example — count of each test result")
 
-    counts = df["label"].value_counts().reset_index()
-    counts.columns = ["תוצאה", "כמות"]
-    st.bar_chart(counts.set_index("תוצאה"))
+    counts = df["test_normal"].value_counts()
+    st.bar_chart(counts)
 
-    st.code("""# כמה מטופלים בכל קטגוריה?
-counts = df["label"].value_counts().reset_index()
-counts.columns = ["תוצאה", "כמות"]
+    st.code("""# Count how many patients in each result category
+counts = df["test_normal"].value_counts()
 
-st.bar_chart(counts.set_index("תוצאה"))
-""", language="python")
-
-    st.markdown("---")
-    st.markdown("### 📌 דוגמה 2 — פילוח לפי מגדר")
-
-    gender_counts = df.groupby(["gender", "label"]).size().reset_index(name="כמות")
-    gender_pivot  = gender_counts.pivot(index="gender", columns="label", values="כמות").fillna(0)
-    gender_pivot.index = ["נקבה (0)", "זכר (1)"]
-    st.bar_chart(gender_pivot)
-
-    st.code("""# כמה מכל מגדר — ולפי תוצאה?
-gender_counts = df.groupby(["gender", "label"]).size().reset_index(name="כמות")
-gender_pivot  = gender_counts.pivot(index="gender", columns="label", values="כמות").fillna(0)
-gender_pivot.index = ["נקבה (0)", "זכר (1)"]
-
-st.bar_chart(gender_pivot)
+st.bar_chart(counts)
 """, language="python")
 
     st.markdown("""
 <div class="tip-box">
-💡 <strong>מה למדנו?</strong> ניתן לראות אם יש הבדל בין מגדרים בתוצאות הבדיקה.
-Bar Chart עוזר להשוות <em>כמויות</em> בין קטגוריות.
+What to look for: are the two bars roughly equal, or is the dataset imbalanced?
+An imbalanced dataset can make a model look accurate even when it is not.
 </div>
 """, unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════
 # SECTION 4 – Line Chart
 # ══════════════════════════════════════════════
-elif section == "4️⃣  Line Chart — קווים":
-    st.header("📈 Line Chart — גרף קווים")
+elif section == "4. Line Chart":
+    st.header("Line Chart")
 
     st.markdown("""
 <div class="section-box">
-<span class="tag-continuous">מתאים לנתון רציף</span><br><br>
-גרף קווים מציג <strong>שינוי לאורך ציר X</strong> — בדרך כלל זמן, אבל יכול להיות גם מדד אחר.
-כאן נשתמש בו כדי לראות את <em>הממוצע לפי גיל</em>.
+<span class="tag tag-continuous">Best for: Ordered / sequential data</span><br><br>
+A line chart shows how a value <strong>changes along an ordered axis</strong>.
+Use it when the order of the X axis matters — like age or time.
 </div>
 """, unsafe_allow_html=True)
 
-    st.markdown("### 📌 דוגמה — דופק ממוצע לפי גיל")
+    st.markdown("### Example — heart_rate for each patient, sorted by age")
 
-    feature = st.selectbox("בחר שדה להצגה:", ["heart_rate", "body_temp", "hemoglobin", "white_blood_cells"])
+    df_sorted = df.sort_values("age")
+    st.line_chart(df_sorted[["age", "heart_rate"]].set_index("age"))
 
-    age_avg = df.groupby("age")[feature].mean().reset_index()
-    age_avg.columns = ["גיל", feature]
-    st.line_chart(age_avg.set_index("גיל"))
+    st.code("""# Sort by age, then plot heart_rate along that axis
+df_sorted = df.sort_values("age")
 
-    st.code(f"""# ממוצע {feature} לפי גיל
-age_avg = df.groupby("age")["{feature}"].mean().reset_index()
-age_avg.columns = ["גיל", "{feature}"]
-
-st.line_chart(age_avg.set_index("גיל"))
+st.line_chart(df_sorted[["age", "heart_rate"]].set_index("age"))
 """, language="python")
 
     st.markdown("""
 <div class="tip-box">
-💡 <strong>מתי משתמשים בקו?</strong> כאשר ציר ה-X הוא <em>סדרתי</em> — כלומר יש משמעות לסדר.
-גיל, זמן, מדידה חוזרת. אם ציר X הוא קטגוריות ללא סדר — עדיף Bar Chart.
+When to use a line chart: when the X axis is ordered and sequential — like age or time.
+If X is just categories with no natural order, use a bar chart instead.
 </div>
 """, unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════
 # SECTION 5 – Scatter Chart
 # ══════════════════════════════════════════════
-elif section == "5️⃣  Scatter Chart — פיזור":
-    st.header("🔵 Scatter Chart — גרף פיזור")
+elif section == "5. Scatter Chart":
+    st.header("Scatter Chart")
 
     st.markdown("""
 <div class="section-box">
-<span class="tag-continuous">מתאים לנתון רציף</span><br><br>
-גרף פיזור מציג את <strong>הקשר בין שני משתנים</strong>. כל נקודה היא מטופל אחד.
-נשתמש בו כדי לראות אם שני שדות ביחד מפרידים בין תקין ולא תקין.
+<span class="tag tag-continuous">Best for: Continuous data</span><br><br>
+A scatter chart shows the <strong>relationship between two variables</strong>.
+Each dot is one patient. We split by <code>test_normal</code> so each group gets its own color —
+this lets us see whether the two features together can separate normal from abnormal patients.
 </div>
 """, unsafe_allow_html=True)
 
     col1, col2 = st.columns(2)
     with col1:
-        x_col = st.selectbox("ציר X:", ["heart_rate", "body_temp", "protein_level", "hemoglobin", "white_blood_cells"], index=0)
+        x_col = st.selectbox("X axis:", ["heart_rate", "body_temp", "protein_level", "hemoglobin", "white_blood_cells"])
     with col2:
-        y_col = st.selectbox("ציר Y:", ["heart_rate", "body_temp", "protein_level", "hemoglobin", "white_blood_cells"], index=4)
+        y_col = st.selectbox("Y axis:", ["hemoglobin", "heart_rate", "body_temp", "protein_level", "white_blood_cells"])
 
-    st.markdown("### 📌 נתקין לעומת לא תקין")
+    st.markdown(f"### {x_col} vs. {y_col} — colored by test_normal")
 
-    normal_df   = df[df["test_normal"] == 1]
-    abnormal_df = df[df["test_normal"] == 0]
-
-    scatter_data = pd.DataFrame({
-        f"תקין — {x_col}":    normal_df[x_col].values,
-        f"תקין — {y_col}":    normal_df[y_col].values,
-    }).dropna()
-
-    # Streamlit scatter — מציג שני ערכים על אותו ציר X
-    # נבנה DataFrame ידידותי
     plot_df = pd.DataFrame({
-        "x":     df[x_col],
-        "תקין":  df[y_col].where(df["test_normal"] == 1),
-        "לא תקין": df[y_col].where(df["test_normal"] == 0),
-    }).set_index("x").sort_index()
+        "x":        df[x_col],
+        "normal":   df[y_col].where(df["test_normal"] == 1),
+        "abnormal": df[y_col].where(df["test_normal"] == 0),
+    }).set_index("x")
 
     st.scatter_chart(plot_df)
 
-    st.code(f"""# גרף פיזור — {x_col} מול {y_col}, לפי תוצאה
+    st.code(f"""# Split by test_normal so each group gets its own color
 plot_df = pd.DataFrame({{
-    "x":          df["{x_col}"],
-    "תקין":       df["{y_col}"].where(df["test_normal"] == 1),
-    "לא תקין":   df["{y_col}"].where(df["test_normal"] == 0),
-}}).set_index("x").sort_index()
+    "x":        df["{x_col}"],
+    "normal":   df["{y_col}"].where(df["test_normal"] == 1),
+    "abnormal": df["{y_col}"].where(df["test_normal"] == 0),
+}}).set_index("x")
 
 st.scatter_chart(plot_df)
 """, language="python")
 
     st.markdown("""
 <div class="tip-box">
-💡 <strong>מה אנחנו מחפשים?</strong> אם הנקודות הכחולות (תקין) והאדומות (לא תקין)
-נמצאות באזורים שונים — זה אומר שהשדות האלו הם <em>מנבאים טובים</em> של test_normal!
+What to look for: if the two colors cluster in different areas of the chart,
+those features are strong predictors of test_normal.
+Try swapping the axes to find the best separating pair.
 </div>
 """, unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════
 # SECTION 6 – Histogram
 # ══════════════════════════════════════════════
-elif section == "6️⃣  Histogram — התפלגות":
-    st.header("📉 Histogram — גרף התפלגות")
+elif section == "6. Histogram":
+    st.header("Histogram")
 
     st.markdown("""
 <div class="section-box">
-<span class="tag-continuous">מתאים לנתון רציף</span><br><br>
-היסטוגרמה מחלקת את הערכים ל<strong>תאים (bins)</strong> ומציגה כמה ערכים נפלו בכל תא.
-היא עוזרת להבין את <em>הצורה</em> של ההתפלגות — האם היא פעמון? מוטה? דו-פסגית?
+<span class="tag tag-continuous">Best for: Continuous data</span><br><br>
+A histogram splits values into <strong>bins</strong> and counts how many fall in each bin.
+We plot normal and abnormal patients side by side to see whether they have different value ranges.
 </div>
 """, unsafe_allow_html=True)
 
-    feature = st.selectbox("בחר שדה:", ["heart_rate", "body_temp", "protein_level", "hemoglobin", "white_blood_cells"])
-    bins    = st.slider("כמות תאים (bins):", 5, 30, 15)
+    feature = st.selectbox("Choose a feature:", ["heart_rate", "body_temp", "protein_level", "hemoglobin", "white_blood_cells"])
+    bins    = st.slider("Number of bins:", 5, 30, 15)
 
-    st.markdown(f"### 📌 התפלגות של {feature} — תקין לעומת לא תקין")
+    st.markdown(f"### Distribution of {feature} — normal vs. abnormal")
 
-    normal_vals   = df[df["test_normal"] == 1][feature]
-    abnormal_vals = df[df["test_normal"] == 0][feature]
+    edges = np.linspace(df[feature].min(), df[feature].max(), bins + 1)
 
-    # בניית histogram ידנית עם np.histogram ואז bar_chart
-    all_min = df[feature].min()
-    all_max = df[feature].max()
-    edges   = np.linspace(all_min, all_max, bins + 1)
+    normal_counts,   _ = np.histogram(df[df["test_normal"] == 1][feature], bins=edges)
+    abnormal_counts, _ = np.histogram(df[df["test_normal"] == 0][feature], bins=edges)
 
-    n_counts, _ = np.histogram(normal_vals,   bins=edges)
-    a_counts, _ = np.histogram(abnormal_vals, bins=edges)
-    labels       = [f"{e:.1f}" for e in edges[:-1]]
-
-    hist_df = pd.DataFrame({
-        "תקין":    n_counts,
-        "לא תקין": a_counts,
-    }, index=labels)
-
+    hist_df = pd.DataFrame(
+        {"normal": normal_counts, "abnormal": abnormal_counts},
+        index=[f"{e:.1f}" for e in edges[:-1]]
+    )
     st.bar_chart(hist_df)
 
-    st.code(f"""# היסטוגרמה — השוואת התפלגות בין תקין ולא תקין
-import numpy as np
+    st.code(f"""import numpy as np
 
 feature = "{feature}"
 bins    = {bins}
 
-normal_vals   = df[df["test_normal"] == 1][feature]
-abnormal_vals = df[df["test_normal"] == 0][feature]
+edges = np.linspace(df[feature].min(), df[feature].max(), bins + 1)
 
-edges   = np.linspace(df[feature].min(), df[feature].max(), bins + 1)
-n_counts, _ = np.histogram(normal_vals,   bins=edges)
-a_counts, _ = np.histogram(abnormal_vals, bins=edges)
-labels       = [f"{{e:.1f}}" for e in edges[:-1]]
+normal_counts,   _ = np.histogram(df[df["test_normal"] == 1][feature], bins=edges)
+abnormal_counts, _ = np.histogram(df[df["test_normal"] == 0][feature], bins=edges)
 
-hist_df = pd.DataFrame({{
-    "תקין":    n_counts,
-    "לא תקין": a_counts,
-}}, index=labels)
-
+hist_df = pd.DataFrame(
+    {{"normal": normal_counts, "abnormal": abnormal_counts}},
+    index=[f"{{e:.1f}}" for e in edges[:-1]]
+)
 st.bar_chart(hist_df)
 """, language="python")
 
     st.markdown("""
 <div class="tip-box">
-💡 <strong>מה לחפש?</strong> אם עמודות "תקין" ו"לא תקין" חופפות הרבה — הנתון לא כל כך מפריד.
-אם הן נמצאות באזורים שונים — הנתון הוא <em>מנבא טוב</em>!
-נסה להחליף בין שדות ולראות מי מפריד הכי טוב.
+What to look for: if the two colors overlap a lot, this feature does not separate the groups well.
+If they sit in different regions, this feature is a strong predictor of test_normal.
+Try switching features to find which one separates best.
 </div>
 """, unsafe_allow_html=True)
-
-# ══════════════════════════════════════════════
-# SECTION 7 – Box Plot
-# ══════════════════════════════════════════════
-elif section == "7️⃣  Box Plot — תיבה":
-    st.header("📦 Box Plot — גרף תיבה")
-
-    st.markdown("""
-<div class="section-box">
-<span class="tag-continuous">מתאים לנתון רציף</span><br><br>
-גרף תיבה (Box Plot) מסכם בצורה קומפקטית את <strong>ההתפלגות</strong> של נתון:
-מינימום, Q1, חציון, Q3, מקסימום — וחריגים.
-נבנה אותו ב-Streamlit באמצעות טבלת סטטיסטיקות + bar_chart.
-</div>
-""", unsafe_allow_html=True)
-
-    feature = st.selectbox("בחר שדה:", ["heart_rate", "body_temp", "protein_level", "hemoglobin", "white_blood_cells"])
-
-    st.markdown(f"### 📌 סיכום סטטיסטי — {feature} לפי תוצאה")
-
-    stats = df.groupby("label")[feature].describe()[["min", "25%", "50%", "75%", "max"]].T
-    stats.index.name = "סטטיסטיקה"
-    st.dataframe(stats.style.format("{:.2f}"), use_container_width=True)
-
-    st.markdown("#### גרף ממוצע + רבעונים")
-    box_df = df.groupby("label")[feature].agg(
-        Q1=lambda x: x.quantile(0.25),
-        חציון="median",
-        Q3=lambda x: x.quantile(0.75),
-    )
-    st.bar_chart(box_df)
-
-    st.code(f"""# Box Plot פשוט — סיכום סטטיסטי לפי קבוצה
-feature = "{feature}"
-
-# טבלת סטטיסטיקות
-stats = df.groupby("label")[feature].describe()[["min","25%","50%","75%","max"]].T
-st.dataframe(stats.style.format("{{:.2f}}"))
-
-# גרף רבעונים
-box_df = df.groupby("label")[feature].agg(
-    Q1=lambda x: x.quantile(0.25),
-    חציון="median",
-    Q3=lambda x: x.quantile(0.75),
-)
-st.bar_chart(box_df)
-""", language="python")
-
-    st.markdown("""
-<div class="tip-box">
-💡 <strong>מה אומר לנו Box Plot?</strong><br>
-אם ה<em>חציון</em> (median) של "תקין" ו"לא תקין" שונה מאוד — זה שדה חזק לחיזוי.<br>
-שדה טוב = הקופסאות לא חופפות. שדה חלש = הקופסאות מאוד חופפות.
-</div>
-""", unsafe_allow_html=True)
-
-    st.markdown("---")
-    st.markdown("### 🏆 איזה שדה הכי מבדיל?")
-    st.markdown("השווה את ה-Q1 וה-Q3 בין הקבוצות:")
-
-    summary_rows = []
-    for col in ["heart_rate", "body_temp", "protein_level", "white_blood_cells", "hemoglobin"]:
-        med_norm   = df[df["test_normal"] == 1][col].median()
-        med_abnorm = df[df["test_normal"] == 0][col].median()
-        diff       = abs(med_norm - med_abnorm)
-        summary_rows.append({"שדה": col, "חציון תקין": round(med_norm,1), "חציון לא תקין": round(med_abnorm,1), "הפרש": round(diff,1)})
-
-    summary_df = pd.DataFrame(summary_rows).sort_values("הפרש", ascending=False)
-    st.dataframe(summary_df, use_container_width=True, hide_index=True)
-    st.success(f"🥇 השדה המבדיל ביותר: **{summary_df.iloc[0]['שדה']}** עם הפרש של {summary_df.iloc[0]['הפרש']}")
