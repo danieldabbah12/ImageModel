@@ -60,23 +60,4 @@ df = generate_dataset()
 st.dataframe(df)
 
 
-st.title("מתי משתמשים ב-Bar Chart?")
-
-st.info("""
-📊 תרשים עמודות (Bar Chart) מתאים כאשר רוצים להשוות בין קבוצות שונות.
-
-### מתי נשתמש בו?
-- כאשר המשתנה ה־X הוא **קטגוריאלי** (למשל: סוגי פירות, ערים, כיתות).
-- כאשר המשתנה ה־Y הוא **מספרי** (למשל: כמות, ממוצע, ספירה).
-
-### איזה קשר אנחנו בודקים?
-- השוואה בין ערכים של קטגוריות שונות.
-- זיהוי איזו קטגוריה גדולה/קטנה יותר.
-- הצגת הבדלים בצורה ויזואלית ברורה.
-
-### דוגמה:
-- כמה תלמידים בכל כיתה
-- מכירות לפי מוצר
-- ציונים ממוצעים לפי קבוצות
-""")
-st.bar_chart(data=df, x="gender", y=None, x_label=None, y_label=None, color=None, horizontal=False, sort=True, stack=None, width="stretch", height="content", use_container_width=None)
+st.line_chart(data=df, *, x=None, y=None, x_label=None, y_label=None, color=None, width="stretch", height="content", use_container_width=None)
