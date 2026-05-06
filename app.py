@@ -1,86 +1,83 @@
-import streamlit as st
 import pandas as pd
 import numpy as np
+import streamlit as st
 
-# ======================
-
-# יצירת דאטה
-
-# ======================
-
-def generate_blood_test_dataset(n=100, noise_ratio=0.08, random_state=42):
-
+def generate_dataset(n=2000, noise_ratio=0.05, random_state=42):
     np.random.seed(random_state)
-
     
-
     half = n // 2
 
-    normal = pd.DataFrame({
-
-        "heart_rate": np.random.normal(72, 8, half),
-
-        "body_temp": np.random.normal(36.6, 0.3, half),
-
-        "protein_level": np.random.normal(7.0, 0.5, half),
-
-        "white_blood_cells": np.random.normal(7000, 1200, half),
-
-        "hemoglobin": np.random.normal(14, 1.5, half),
-
-        "age": np.random.randint(18, 65, half),
-
-        "gender": np.random.randint(0, 2, half),
-
-        "test_normal": 1
-
+    # ======================
+    # שיגור אמיתי (1)
+    # ======================
+    real = pd.DataFrame({
+        "signal_strength": np.random.normal(loc=75, scale=15, size=half),
+        "signal_duration": np.random.normal(loc=14, scale=5, size=half),
+        "time_to_peak": np.random.normal(loc=4, scale=2, size=half),
+        "hour": np.random.randint(0, 24, size=half),
+        "day_of_week": np.random.randint(1, 8, size=half),
+        "latitude": np.random.normal(loc=31.7, scale=0.8, size=half),
+        "longitude": np.random.normal(loc=34.9, scale=0.8, size=half),
+        "station_id": np.random.randint(1, 11, size=half),
+        "launch_to_israel": 1
     })
 
-    abnormal = pd.DataFrame({
-
-        "heart_rate": np.random.normal(90, 15, half),
-
-        "body_temp": np.random.normal(37.8, 0.8, half),
-
-        "protein_level": np.random.normal(6.0, 1.0, half),
-
-        "white_blood_cells": np.random.normal(11000, 3000, half),
-
-        "hemoglobin": np.random.normal(11.5, 2.0, half),
-
-        "age": np.random.randint(18, 80, half),
-
-        "gender": np.random.randint(0, 2, half),
-
-        "test_normal": 0
-
+    # ======================
+    # זיהוי שווא (0)
+    # ======================
+    false = pd.DataFrame({
+        "signal_strength": np.random.normal(loc=55, scale=20, size=half),
+        "signal_duration": np.random.normal(loc=10, scale=6, size=half),
+        "time_to_peak": np.random.normal(loc=6, scale=3, size=half),
+        "hour": np.random.randint(0, 24, size=half),
+        "day_of_week": np.random.randint(1, 8, size=half),
+        "latitude": np.random.normal(loc=32.2, scale=1.2, size=half),
+        "longitude": np.random.normal(loc=35.2, scale=1.2, size=half),
+        "station_id": np.random.randint(1, 11, size=half),
+        "launch_to_israel": 0
     })
 
-    df = pd.concat([normal, abnormal]).sample(frac=1).reset_index(drop=True)
+    # איחוד
+    df = pd.concat([real, false]).sample(frac=1).reset_index(drop=True)
 
-    # רעש
-
+    # ======================
+    # רעש (label noise)
+    # ======================
     noise_size = int(n * noise_ratio)
+    noise_idx = np.random.choice(n, size=noise_size, replace=False)
+    df.loc[noise_idx, "launch_to_israel"] = 1 - df.loc[noise_idx, "launch_to_israel"]
 
-    noise_idx = np.random.choice(n, noise_size, replace=False)
-
-    df.loc[noise_idx, "test_normal"] = 1 - df.loc[noise_idx, "test_normal"]
-
-    # עיגול
-
-    df["heart_rate"] = df["heart_rate"].round(0)
-
-    df["body_temp"] = df["body_temp"].round(1)
-
-    df["protein_level"] = df["protein_level"].round(2)
-
-    df["white_blood_cells"] = df["white_blood_cells"].round(0)
-
-    df["hemoglobin"] = df["hemoglobin"].round(1)
+    # עיגול ערכים
+    df["signal_strength"] = df["signal_strength"].round(2)
+    df["signal_duration"] = df["signal_duration"].round(2)
+    df["time_to_peak"] = df["time_to_peak"].round(2)
+    df["latitude"] = df["latitude"].round(4)
+    df["longitude"] = df["longitude"].round(4)
 
     return df
 
-
-
 df = generate_blood_test_dataset()
 st.dataframe(df)
+
+import streamlit as st
+
+st.title("מתי משתמשים ב-Bar Chart?")
+
+st.info("""
+📊 תרשים עמודות (Bar Chart) מתאים כאשר רוצים להשוות בין קבוצות שונות.
+
+### מתי נשתמש בו?
+- כאשר המשתנה ה־X הוא **קטגוריאלי** (למשל: סוגי פירות, ערים, כיתות).
+- כאשר המשתנה ה־Y הוא **מספרי** (למשל: כמות, ממוצע, ספירה).
+
+### איזה קשר אנחנו בודקים?
+- השוואה בין ערכים של קטגוריות שונות.
+- זיהוי איזו קטגוריה גדולה/קטנה יותר.
+- הצגת הבדלים בצורה ויזואלית ברורה.
+
+### דוגמה:
+- כמה תלמידים בכל כיתה
+- מכירות לפי מוצר
+- ציונים ממוצעים לפי קבוצות
+""")
+st.bar_chart(data=df, *, x="gender", y=None, x_label=None, y_label=None, color=None, horizontal=False, sort=True, stack=None, width="stretch", height="content", use_container_width=None)
